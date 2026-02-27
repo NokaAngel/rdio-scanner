@@ -124,6 +124,7 @@ export interface RdioScannerEvent {
     queue?: number;
     time?: number;
     tooMany?: boolean;
+    volume?: number;
 }
 
 export interface RdioScannerKeypadBeeps {

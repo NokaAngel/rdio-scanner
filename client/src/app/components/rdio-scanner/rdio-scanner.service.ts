@@ -67,10 +67,12 @@ export class RdioScannerService implements OnDestroy {
     static LOCAL_STORAGE_KEY_LEGACY = 'rdio-scanner';
     static LOCAL_STORAGE_KEY_LFM = 'rdio-scanner-lfm';
     static LOCAL_STORAGE_KEY_PIN = 'rdio-scanner-pin';
+    static LOCAL_STORAGE_KEY_VOLUME = 'rdio-scanner-volume';
 
     event = new EventEmitter<RdioScannerEvent>();
 
     private audioContext: AudioContext | undefined;
+    private playbackGainNode: GainNode | undefined;
 
     private audioSource: AudioBufferSourceNode | undefined;
     private audioSourceStartTime = NaN;
@@ -500,7 +502,7 @@ export class RdioScannerService implements OnDestroy {
 
             this.audioSource = this.audioContext.createBufferSource();
             this.audioSource.buffer = buffer;
-            this.audioSource.connect(this.audioContext.destination);
+            this.audioSource.connect(this.playbackGainNode || this.audioContext.destination);
             this.audioSource.onended = () => this.skip({ delay: true });
             this.audioSource.start();
 
@@ -558,6 +560,28 @@ export class RdioScannerService implements OnDestroy {
 
     savePin(pin: string): void {
         window?.localStorage?.setItem(RdioScannerService.LOCAL_STORAGE_KEY_PIN, window.btoa(pin));
+    }
+
+    getVolume(): number {
+        if (this.playbackGainNode) {
+            return this.clampVolume(this.playbackGainNode.gain.value);
+        }
+
+        const storedVolume = Number(window?.localStorage?.getItem(RdioScannerService.LOCAL_STORAGE_KEY_VOLUME));
+
+        return this.clampVolume(Number.isFinite(storedVolume) ? storedVolume : 1);
+    }
+
+    setVolume(value: number): void {
+        const volume = this.clampVolume(value);
+
+        if (this.playbackGainNode) {
+            this.playbackGainNode.gain.value = volume;
+        }
+
+        window?.localStorage?.setItem(RdioScannerService.LOCAL_STORAGE_KEY_VOLUME, volume.toString());
+
+        this.event.emit({ volume });
     }
 
     searchCalls(options: RdioScannerSearchOptions): void {
@@ -717,6 +741,12 @@ export class RdioScannerService implements OnDestroy {
         const bootstrap = async () => {
             if (!this.audioContext) {
                 this.audioContext = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'playback' });
+                this.playbackGainNode = this.audioContext.createGain();
+                this.playbackGainNode.connect(this.audioContext.destination);
+
+                const storedVolume = Number(window?.localStorage?.getItem(RdioScannerService.LOCAL_STORAGE_KEY_VOLUME));
+
+                this.setVolume(Number.isFinite(storedVolume) ? storedVolume : 1);
             }
 
             if (!this.beepContext) {
@@ -755,6 +785,14 @@ export class RdioScannerService implements OnDestroy {
         };
 
         events.forEach((event) => document.body.addEventListener(event, bootstrap));
+    }
+
+    private clampVolume(value: number): number {
+        if (isNaN(value)) {
+            return 1;
+        }
+
+        return Math.min(1, Math.max(0, value));
     }
 
     private cleanQueue(): void {
