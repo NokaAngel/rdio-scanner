@@ -158,6 +158,22 @@
             SELECT<br>TG
         </button>
     </div>
+    <div class="row volume-row">
+        <button class="rdio-button" (click)="toggleMute()" [ngClass]="{ off: !muted, on: muted }">
+            {{ muted ? 'UNMUTE' : 'MUTE' }}
+        </button>
+        <div class="spacer"></div>
+        <div class="volume-control">
+            <span>VOLUME</span>
+            <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                [value]="volume"
+                (input)="setVolume($any($event.target).value)">
+        </div>
+    </div>
 </div>
 <div class="rdio-help" *ngIf="email">
     <button mat-icon-button (click)="showHelp()">

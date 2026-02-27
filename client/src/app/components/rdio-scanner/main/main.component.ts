@@ -101,7 +101,12 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
     livefeedOnline = false;
     livefeedPaused = false;
 
+    muted = false;
+
     map: RdioScannerLivefeedMap = {};
+
+    volume = 1;
+    volumeBeforeMute = 1;
 
     patched = false;
 
@@ -250,6 +255,10 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
 
     ngOnInit(): void {
         this.syncClock();
+
+        this.volume = this.rdioScannerService.getVolume();
+        this.muted = this.volume === 0;
+        this.volumeBeforeMute = this.volume > 0 ? this.volume : 1;
     }
 
     pause(): void {
@@ -308,6 +317,36 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
 
             this.updateDimmer();
         }
+    }
+
+
+    setVolume(value: number | string): void {
+        const volume = typeof value === 'string' ? Number(value) : value;
+
+        this.rdioScannerService.setVolume(volume);
+
+        this.updateDimmer();
+    }
+
+    toggleMute(): void {
+        if (this.auth) {
+            this.authFocus();
+
+            return;
+        }
+
+        if (this.muted || this.volume === 0) {
+            const volume = this.volumeBeforeMute > 0 ? this.volumeBeforeMute : 1;
+            this.rdioScannerService.setVolume(volume);
+            this.rdioScannerService.beep(RdioScannerBeepStyle.Deactivate);
+
+        } else {
+            this.volumeBeforeMute = this.volume;
+            this.rdioScannerService.setVolume(0);
+            this.rdioScannerService.beep(RdioScannerBeepStyle.Activate);
+        }
+
+        this.updateDimmer();
     }
 
     showHelp(): void {
@@ -456,6 +495,15 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
 
         if ('queue' in event) {
             this.callQueue = event.queue || 0;
+        }
+
+        if ('volume' in event && typeof event.volume === 'number') {
+            this.volume = event.volume;
+            this.muted = this.volume === 0;
+
+            if (this.volume > 0) {
+                this.volumeBeforeMute = this.volume;
+            }
         }
 
         if ('time' in event && typeof event.time === 'number') {
