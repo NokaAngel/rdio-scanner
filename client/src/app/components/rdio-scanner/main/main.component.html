@@ -124,6 +124,10 @@
             LIVE<br>FEED
         </button>
         <div class="spacer"></div>
+        <button class="rdio-button" (click)="showSettings()">
+            SETTINGS
+        </button>
+        <div class="spacer"></div>
         <button class="rdio-button" (click)="holdSystem()" [ngClass]="{ off: !holdSys, on: holdSys }">
             HOLD<br>SYS
         </button>
@@ -144,6 +148,13 @@
         <button class="rdio-button" (click)="avoid()">
             AVOID
         </button>
+    </div>
+    <div class="row quick-avoid-row">
+        <button class="rdio-button small" (click)="setAvoidMinutes(30)">AVOID 30M</button>
+        <div class="spacer"></div>
+        <button class="rdio-button small" (click)="setAvoidMinutes(60)">AVOID 60M</button>
+        <div class="spacer"></div>
+        <button class="rdio-button small" (click)="setAvoidMinutes(120)">AVOID 120M</button>
     </div>
     <div class="row">
         <button class="rdio-button" (click)="showSearchPanel()">

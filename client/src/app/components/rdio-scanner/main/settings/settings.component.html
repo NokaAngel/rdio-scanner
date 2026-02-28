@@ -1,0 +1,47 @@
+<h2 mat-dialog-title>Control preferences</h2>
+<mat-dialog-content>
+    <div class="timers">
+        <mat-form-field>
+            <mat-label>Skip delay (ms)</mat-label>
+            <input matInput type="number" min="100" step="100" [(ngModel)]="preferences.skipDelayMs">
+        </mat-form-field>
+
+        <mat-form-field>
+            <mat-label>Replay step timeout (ms)</mat-label>
+            <input matInput type="number" min="100" step="100" [(ngModel)]="preferences.replayStepTimeoutMs">
+        </mat-form-field>
+    </div>
+
+    <div class="table-title">Per-action feedback and shortcuts</div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Action</th>
+                <th>Beep</th>
+                <th>Haptic</th>
+                <th>Shortcut</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr *ngFor="let row of actionRows">
+                <td>{{ row.label }}</td>
+                <td><mat-slide-toggle [(ngModel)]="preferences.feedback[row.action].beep"></mat-slide-toggle></td>
+                <td><mat-slide-toggle [(ngModel)]="preferences.feedback[row.action].haptic"></mat-slide-toggle></td>
+                <td>
+                    <input
+                        matInput
+                        maxlength="1"
+                        placeholder="-"
+                        [ngModel]="preferences.keyboardShortcuts[row.action] || ''"
+                        (ngModelChange)="preferences.keyboardShortcuts[row.action] = $event?.toLowerCase()">
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+    <button mat-button (click)="close()">Cancel</button>
+    <button mat-raised-button color="primary" (click)="save()">Save</button>
+</mat-dialog-actions>

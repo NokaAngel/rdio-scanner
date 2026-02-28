@@ -1,0 +1,36 @@
+.timers {
+  display: flex;
+  gap: 12px;
+
+  mat-form-field {
+    flex: 1;
+  }
+}
+
+.table-title {
+  font-size: 12px;
+  margin-bottom: 8px;
+  opacity: 0.8;
+  text-transform: uppercase;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+
+  td,
+  th {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+    padding: 4px 8px;
+    text-align: left;
+  }
+
+  th {
+    font-size: 12px;
+    text-transform: uppercase;
+  }
+
+  td:last-child {
+    width: 72px;
+  }
+}

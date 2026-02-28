@@ -26,6 +26,17 @@
       width: 24px;
     }
 
+
+    &.quick-avoid-row {
+      margin-top: -6px;
+
+      .rdio-button.small {
+        font-size: 11px;
+        min-height: 30px;
+        padding: 0 4px;
+      }
+    }
+
     &.volume-row {
       .rdio-button {
         flex: 0.45;

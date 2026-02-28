@@ -125,6 +125,31 @@ export interface RdioScannerEvent {
     time?: number;
     tooMany?: boolean;
     volume?: number;
+    preferences?: RdioScannerUserPreferences;
+}
+
+export type RdioScannerControlAction =
+    'avoid'
+    | 'holdSystem'
+    | 'holdTalkgroup'
+    | 'livefeed'
+    | 'pause'
+    | 'replay'
+    | 'search'
+    | 'select'
+    | 'skip'
+    | 'mute';
+
+export interface RdioScannerActionFeedbackPreference {
+    beep: boolean;
+    haptic: boolean;
+}
+
+export interface RdioScannerUserPreferences {
+    feedback: Record<RdioScannerControlAction, RdioScannerActionFeedbackPreference>;
+    keyboardShortcuts: Partial<Record<RdioScannerControlAction, string>>;
+    replayStepTimeoutMs: number;
+    skipDelayMs: number;
 }
 
 export interface RdioScannerKeypadBeeps {

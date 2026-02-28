@@ -37,6 +37,8 @@ import {
     RdioScannerLivefeedMode,
     RdioScannerPlaybackList,
     RdioScannerSearchOptions,
+    RdioScannerUserPreferences,
+    RdioScannerControlAction,
 } from './rdio-scanner';
 
 declare global {
@@ -49,6 +51,25 @@ enum WebsocketCallFlag {
     Download = 'd',
     Play = 'p',
 }
+
+
+const defaultPreferences = (): RdioScannerUserPreferences => ({
+    skipDelayMs: 1000,
+    replayStepTimeoutMs: 1000,
+    feedback: {
+        avoid: { beep: true, haptic: false },
+        holdSystem: { beep: true, haptic: false },
+        holdTalkgroup: { beep: true, haptic: false },
+        livefeed: { beep: true, haptic: false },
+        pause: { beep: true, haptic: false },
+        replay: { beep: true, haptic: false },
+        search: { beep: true, haptic: false },
+        select: { beep: true, haptic: false },
+        skip: { beep: true, haptic: false },
+        mute: { beep: true, haptic: false },
+    },
+    keyboardShortcuts: {},
+});
 
 enum WebsocketCommand {
     Call = 'CAL',
@@ -68,6 +89,7 @@ export class RdioScannerService implements OnDestroy {
     static LOCAL_STORAGE_KEY_LFM = 'rdio-scanner-lfm';
     static LOCAL_STORAGE_KEY_PIN = 'rdio-scanner-pin';
     static LOCAL_STORAGE_KEY_VOLUME = 'rdio-scanner-volume';
+    static LOCAL_STORAGE_KEY_PREFERENCES = 'rdio-scanner-preferences';
 
     event = new EventEmitter<RdioScannerEvent>();
 
@@ -113,6 +135,8 @@ export class RdioScannerService implements OnDestroy {
 
     private websocket: WebSocket | undefined;
 
+    private preferences: RdioScannerUserPreferences = defaultPreferences();
+
     constructor(
         appUpdateService: AppUpdateService,
         private router: Router,
@@ -123,6 +147,8 @@ export class RdioScannerService implements OnDestroy {
         this.initializeInstanceId();
 
         this.readLivefeedMap();
+
+        this.preferences = this.readPreferences();
 
         this.openWebsocket();
     }
@@ -221,6 +247,44 @@ export class RdioScannerService implements OnDestroy {
             map: this.livefeedMap,
             queue: this.callQueue.length,
         });
+    }
+
+
+    getPreferences(): RdioScannerUserPreferences {
+        return {
+            ...this.preferences,
+            feedback: Object.keys(this.preferences.feedback).reduce((acc, action) => {
+                acc[action as RdioScannerControlAction] = { ...this.preferences.feedback[action as RdioScannerControlAction] };
+                return acc;
+            }, {} as RdioScannerUserPreferences['feedback']),
+            keyboardShortcuts: { ...this.preferences.keyboardShortcuts },
+        };
+    }
+
+    getReplayStepTimeoutMs(): number {
+        return this.preferences.replayStepTimeoutMs;
+    }
+
+    getSkipDelayMs(): number {
+        return this.preferences.skipDelayMs;
+    }
+
+    setPreferences(partial: Partial<RdioScannerUserPreferences>): void {
+        this.preferences = this.mergePreferences(partial);
+        window?.localStorage?.setItem(RdioScannerService.LOCAL_STORAGE_KEY_PREFERENCES, JSON.stringify(this.preferences));
+        this.event.emit({ preferences: this.getPreferences() });
+    }
+
+    triggerActionFeedback(action: RdioScannerControlAction, style = RdioScannerBeepStyle.Activate): void {
+        const feedback = this.preferences.feedback[action];
+
+        if (feedback?.beep) {
+            this.beep(style);
+        }
+
+        if (feedback?.haptic && navigator?.vibrate) {
+            navigator.vibrate(style === RdioScannerBeepStyle.Denied ? [20, 30, 20] : 30);
+        }
     }
 
     beep(style = RdioScannerBeepStyle.Activate): Promise<void> {
@@ -601,7 +665,7 @@ export class RdioScannerService implements OnDestroy {
         this.stop();
 
         if (options?.delay) {
-            this.skipDelay = timer(1000).subscribe(() => {
+            this.skipDelay = timer(this.getSkipDelayMs()).subscribe(() => {
                 this.skipDelay = undefined;
 
                 play();
@@ -793,6 +857,55 @@ export class RdioScannerService implements OnDestroy {
         }
 
         return Math.min(1, Math.max(0, value));
+    }
+
+
+    private mergePreferences(partial: Partial<RdioScannerUserPreferences>): RdioScannerUserPreferences {
+        const defaults = defaultPreferences();
+        const existing = this.preferences || defaults;
+
+        const merged: RdioScannerUserPreferences = {
+            skipDelayMs: this.normalizeDelay(partial.skipDelayMs ?? existing.skipDelayMs ?? defaults.skipDelayMs),
+            replayStepTimeoutMs: this.normalizeDelay(partial.replayStepTimeoutMs ?? existing.replayStepTimeoutMs ?? defaults.replayStepTimeoutMs),
+            feedback: { ...defaults.feedback },
+            keyboardShortcuts: {
+                ...existing.keyboardShortcuts,
+                ...(partial.keyboardShortcuts || {}),
+            },
+        };
+
+        (Object.keys(defaults.feedback) as RdioScannerControlAction[]).forEach((action) => {
+            merged.feedback[action] = {
+                ...defaults.feedback[action],
+                ...(existing.feedback?.[action] || {}),
+                ...(partial.feedback?.[action] || {}),
+            };
+        });
+
+        return merged;
+    }
+
+    private normalizeDelay(value: number): number {
+        if (!Number.isFinite(value)) {
+            return 1000;
+        }
+
+        return Math.max(100, Math.round(value));
+    }
+
+    private readPreferences(): RdioScannerUserPreferences {
+        const defaults = defaultPreferences();
+        const raw = window?.localStorage?.getItem(RdioScannerService.LOCAL_STORAGE_KEY_PREFERENCES);
+
+        if (!raw) {
+            return defaults;
+        }
+
+        try {
+            return this.mergePreferences(JSON.parse(raw));
+        } catch {
+            return defaults;
+        }
     }
 
     private cleanQueue(): void {

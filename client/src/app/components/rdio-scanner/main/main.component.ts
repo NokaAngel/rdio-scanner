@@ -17,8 +17,9 @@
  * ****************************************************************************
  */
 
-import { ChangeDetectorRef, Component, EventEmitter, OnDestroy, OnInit, Output, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, HostListener, OnDestroy, OnInit, Output, ViewChild } from '@angular/core';
 import { FormBuilder } from '@angular/forms';
+import { MatDialog } from '@angular/material/dialog';
 import { MatInput } from '@angular/material/input';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Subscription, timer } from 'rxjs';
@@ -31,9 +32,12 @@ import {
     RdioScannerEvent,
     RdioScannerLivefeedMap,
     RdioScannerLivefeedMode,
+    RdioScannerControlAction,
+    RdioScannerUserPreferences,
 } from '../rdio-scanner';
 import { RdioScannerService } from '../rdio-scanner.service';
 import { RdioScannerSupportComponent } from './support/support.component';
+import { RdioScannerSettingsComponent } from './settings/settings.component';
 
 @Component({
     selector: 'rdio-scanner-main',
@@ -115,6 +119,8 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
     replayOffset = 0;
     replayTimer: Subscription | undefined;
 
+    preferences: RdioScannerUserPreferences = this.rdioScannerService.getPreferences();
+
     tempAvoid = 0;
 
     timeFormat = 'HH:mm';
@@ -141,6 +147,7 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
 
     constructor(
         private rdioScannerService: RdioScannerService,
+        private matDialog: MatDialog,
         private matSnackBar: MatSnackBar,
         private ngChangeDetectorRef: ChangeDetectorRef,
         private ngFormBuilder: FormBuilder,
@@ -185,15 +192,15 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
             }
 
             if (call && this.rdioScannerService.isAvoided(call)) {
-                this.rdioScannerService.beep(RdioScannerBeepStyle.Activate);
+                this.feedback('avoid', RdioScannerBeepStyle.Activate);
             } else {
-                this.rdioScannerService.beep(RdioScannerBeepStyle.Deactivate);
+                this.feedback('avoid', RdioScannerBeepStyle.Deactivate);
             }
 
             this.updateDimmer();
 
         } else {
-            this.rdioScannerService.beep(RdioScannerBeepStyle.Denied);
+            this.feedback('avoid', RdioScannerBeepStyle.Denied);
         }
 
     }
@@ -204,12 +211,12 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
 
         } else {
             if (this.call || this.callPrevious) {
-                this.rdioScannerService.beep(this.holdSys ? RdioScannerBeepStyle.Deactivate : RdioScannerBeepStyle.Activate);
+                this.feedback('holdSystem', this.holdSys ? RdioScannerBeepStyle.Deactivate : RdioScannerBeepStyle.Activate);
 
                 this.rdioScannerService.holdSystem();
 
             } else {
-                this.rdioScannerService.beep(RdioScannerBeepStyle.Denied);
+                this.feedback('holdSystem', RdioScannerBeepStyle.Denied);
             }
 
             this.updateDimmer();
@@ -222,12 +229,12 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
 
         } else {
             if (this.call || this.callPrevious) {
-                this.rdioScannerService.beep(this.holdTg ? RdioScannerBeepStyle.Deactivate : RdioScannerBeepStyle.Activate);
+                this.feedback('holdTalkgroup', this.holdTg ? RdioScannerBeepStyle.Deactivate : RdioScannerBeepStyle.Activate);
 
                 this.rdioScannerService.holdTalkgroup();
 
             } else {
-                this.rdioScannerService.beep(RdioScannerBeepStyle.Denied);
+                this.feedback('holdTalkgroup', RdioScannerBeepStyle.Denied);
             }
 
             this.updateDimmer();
@@ -239,7 +246,7 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
             this.authFocus();
 
         } else {
-            this.rdioScannerService.beep(this.livefeedOffline ? RdioScannerBeepStyle.Activate : RdioScannerBeepStyle.Deactivate);
+            this.feedback('livefeed', this.livefeedOffline ? RdioScannerBeepStyle.Activate : RdioScannerBeepStyle.Deactivate);
 
             this.rdioScannerService.livefeed();
 
@@ -267,12 +274,12 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
 
         } else {
             if (this.livefeedPaused) {
-                this.rdioScannerService.beep(RdioScannerBeepStyle.Deactivate);
+                this.feedback('pause', RdioScannerBeepStyle.Deactivate);
 
                 this.rdioScannerService.pause();
 
             } else {
-                this.rdioScannerService.beep(RdioScannerBeepStyle.Activate);
+                this.feedback('pause', RdioScannerBeepStyle.Activate);
 
                 this.rdioScannerService.pause();
             }
@@ -287,14 +294,14 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
 
         } else {
             if (!this.livefeedPaused && (this.call || this.callPrevious)) {
-                this.rdioScannerService.beep(RdioScannerBeepStyle.Activate);
+                this.feedback('replay', RdioScannerBeepStyle.Activate);
 
                 if (this.replayTimer instanceof Subscription) {
                     this.replayTimer.unsubscribe();
                     this.replayOffset = Math.min(this.callHistory.length, this.replayOffset + 1);
                 }
 
-                this.replayTimer = timer(1000).subscribe(() => {
+                this.replayTimer = timer(this.rdioScannerService.getReplayStepTimeoutMs()).subscribe(() => {
                     this.replayTimer = undefined;
                     this.replayOffset = 0;
                 });
@@ -312,7 +319,7 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
                 }
 
             } else {
-                this.rdioScannerService.beep(RdioScannerBeepStyle.Denied);
+                this.feedback('replay', RdioScannerBeepStyle.Denied);
             }
 
             this.updateDimmer();
@@ -338,12 +345,12 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
         if (this.muted || this.volume === 0) {
             const volume = this.volumeBeforeMute > 0 ? this.volumeBeforeMute : 1;
             this.rdioScannerService.setVolume(volume);
-            this.rdioScannerService.beep(RdioScannerBeepStyle.Deactivate);
+            this.feedback('mute', RdioScannerBeepStyle.Deactivate);
 
         } else {
             this.volumeBeforeMute = this.volume;
             this.rdioScannerService.setVolume(0);
-            this.rdioScannerService.beep(RdioScannerBeepStyle.Activate);
+            this.feedback('mute', RdioScannerBeepStyle.Activate);
         }
 
         this.updateDimmer();
@@ -365,7 +372,7 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
             this.authFocus();
 
         } else {
-            this.rdioScannerService.beep();
+            this.feedback('search');
 
             this.openSearchPanel.emit();
         }
@@ -380,7 +387,7 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
             this.authFocus();
 
         } else {
-            this.rdioScannerService.beep();
+            this.feedback('select');
 
             this.openSelectPanel.emit();
         }
@@ -391,7 +398,7 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
             this.authFocus();
 
         } else {
-            this.rdioScannerService.beep(RdioScannerBeepStyle.Activate);
+            this.feedback('skip', RdioScannerBeepStyle.Activate);
 
             this.rdioScannerService.skip(options);
 
@@ -399,8 +406,86 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
         }
     }
 
+
+    setAvoidMinutes(minutes: number): void {
+        this.avoid({ minutes, status: false });
+    }
+
+    showSettings(): void {
+        const dialogRef = this.matDialog.open(RdioScannerSettingsComponent, {
+            data: { preferences: this.preferences },
+            maxWidth: '560px',
+            width: '90vw',
+        });
+
+        dialogRef.afterClosed().subscribe((preferences?: RdioScannerUserPreferences) => {
+            if (preferences) {
+                this.rdioScannerService.setPreferences(preferences);
+            }
+        });
+    }
+
+    @HostListener('window:keydown', ['$event'])
+    onWindowKeydown(event: KeyboardEvent): void {
+        if (!this.preferences?.keyboardShortcuts) {
+            return;
+        }
+
+        const target = event.target as HTMLElement | null;
+        if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) {
+            return;
+        }
+
+        const key = event.key.toLowerCase();
+        const action = (Object.keys(this.preferences.keyboardShortcuts) as RdioScannerControlAction[])
+            .find((candidate) => this.preferences.keyboardShortcuts[candidate]?.toLowerCase() === key);
+
+        if (!action) {
+            return;
+        }
+
+        event.preventDefault();
+
+        switch (action) {
+            case 'avoid':
+                this.avoid();
+                break;
+            case 'livefeed':
+                this.livefeed();
+                break;
+            case 'pause':
+                this.pause();
+                break;
+            case 'replay':
+                this.replay();
+                break;
+            case 'search':
+                this.showSearchPanel();
+                break;
+            case 'select':
+                this.showSelectPanel();
+                break;
+            case 'skip':
+                this.skip();
+                break;
+            case 'holdSystem':
+                this.holdSystem();
+                break;
+            case 'holdTalkgroup':
+                this.holdTalkgroup();
+                break;
+            case 'mute':
+                this.toggleMute();
+                break;
+        }
+    }
+
     stop(): void {
         this.rdioScannerService.stop();
+    }
+
+    private feedback(action: RdioScannerControlAction, style = RdioScannerBeepStyle.Activate): void {
+        this.rdioScannerService.triggerActionFeedback(action, style);
     }
 
     private eventHandler(event: RdioScannerEvent): void {
@@ -495,6 +580,10 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
 
         if ('queue' in event) {
             this.callQueue = event.queue || 0;
+        }
+
+        if ('preferences' in event && event.preferences) {
+            this.preferences = event.preferences;
         }
 
         if ('volume' in event && typeof event.volume === 'number') {
