@@ -166,20 +166,27 @@ export class RdioScannerService implements OnDestroy {
         if (typeof options.all === 'boolean') {
             Object.keys(this.livefeedMap).map((sys: string) => +sys).forEach((sys: number) => {
                 Object.keys(this.livefeedMap[sys]).map((tg: string) => +tg).forEach((tg: number) => {
-                    const lfm = this.livefeedMap[sys][tg];
+                    const lfm = this.getLivefeed(sys, tg);
+
+                    if (!lfm) {
+                        return;
+                    }
+
                     clearTimer(lfm);
                     lfm.active = typeof options.status === 'boolean' ? options.status : !!options.all;
                 });
             });
 
         } else if (options.call) {
-            const lfm = this.livefeedMap[options.call.system][options.call.talkgroup];
+            const lfm = this.getLivefeed(options.call.system, options.call.talkgroup);
+            if (!lfm) return;
             clearTimer(lfm);
             lfm.active = typeof options.status === 'boolean' ? options.status : !lfm.active;
             if (typeof options.minutes === 'number') setTimer(lfm, options.minutes);
 
         } else if (options.system && options.talkgroup) {
-            const lfm = this.livefeedMap[options.system.id][options.talkgroup.id];
+            const lfm = this.getLivefeed(options.system.id, options.talkgroup.id);
+            if (!lfm) return;
             clearTimer(lfm);
             lfm.active = typeof options.status === 'boolean' ? options.status : !lfm.active;
             if (typeof options.minutes === 'number') setTimer(lfm, options.minutes);
@@ -187,7 +194,12 @@ export class RdioScannerService implements OnDestroy {
         } else if (options.system && !options.talkgroup) {
             const sys = options.system.id;
             Object.keys(this.livefeedMap[sys]).map((tg: string) => +tg).forEach((tg: number) => {
-                const lfm = this.livefeedMap[sys][tg];
+                const lfm = this.getLivefeed(sys, tg);
+
+                if (!lfm) {
+                    return;
+                }
+
                 clearTimer(lfm);
                 lfm.active = typeof options.status === 'boolean' ? options.status : !lfm.active;
             });
@@ -195,7 +207,8 @@ export class RdioScannerService implements OnDestroy {
         } else {
             const call = this.call || this.callPrevious;
             if (call) {
-                const lfm = this.livefeedMap[call.system][call.talkgroup];
+                const lfm = this.getLivefeed(call.system, call.talkgroup);
+                if (!lfm) return;
                 clearTimer(lfm);
                 lfm.active = typeof options.status === 'boolean' ? options.status : !lfm.active;
                 if (typeof options.minutes === 'number') setTimer(lfm, options.minutes);
@@ -288,13 +301,15 @@ export class RdioScannerService implements OnDestroy {
                 this.livefeedMapPriorToHoldSystem = this.livefeedMap;
 
                 this.livefeedMap = Object.keys(this.livefeedMap).map((sys) => +sys).reduce((sysMap, sys) => {
-                    const allOn = Object.keys(this.livefeedMap[sys]).map((tg) => +tg).every((tg) => !this.livefeedMap[sys][tg]);
+                    const allOn = Object.keys(this.livefeedMap[sys]).map((tg) => +tg).every((tg) => !this.getLivefeed(sys, tg));
 
                     sysMap[sys] = Object.keys(this.livefeedMap[sys]).map((tg) => +tg).reduce((tgMap, tg) => {
-                        this.livefeedMap[sys][tg].timer?.unsubscribe();
+                        const lfm = this.getLivefeed(sys, tg);
+
+                        lfm?.timer?.unsubscribe();
 
                         tgMap[tg] = {
-                            active: sys === call.system ? allOn || this.livefeedMap[sys][tg].active : false,
+                            active: sys === call.system ? allOn || !!lfm?.active : false,
                         } as RdioScannerLivefeed;
 
                         return tgMap;
@@ -342,7 +357,7 @@ export class RdioScannerService implements OnDestroy {
 
                 this.livefeedMap = Object.keys(this.livefeedMap).map((sys) => +sys).reduce((sysMap, sys) => {
                     sysMap[sys] = Object.keys(this.livefeedMap[sys]).map((tg) => +tg).reduce((tgMap, tg) => {
-                        this.livefeedMap[sys][tg].timer?.unsubscribe();
+                        this.getLivefeed(sys, tg)?.timer?.unsubscribe();
 
                         tgMap[tg] = {
                             active: sys === call.system ? tg === call.talkgroup : false,
@@ -376,19 +391,22 @@ export class RdioScannerService implements OnDestroy {
     }
 
     isAvoided(call: RdioScannerCall): boolean {
-        return !!this.livefeedMap[call.system] && this.livefeedMap[call.system][call.talkgroup]?.active !== true;
+        return this.getLivefeed(call.system, call.talkgroup)?.active !== true;
     }
 
     isAvoidedTimer(call: RdioScannerCall): number {
-        if (!!this.livefeedMap[call.system] && this.livefeedMap[call.system][call.talkgroup]?.minutes !== undefined) {
-            return this.livefeedMap[call.system][call.talkgroup]?.minutes || 0;
+        const lfm = this.getLivefeed(call.system, call.talkgroup);
+
+        if (lfm?.minutes !== undefined) {
+            return lfm.minutes || 0;
         }
+
         return 0;
     }
 
     isPatched(call: RdioScannerCall): boolean {
         return this.isAvoided(call) && call.patches.some((tg) => {
-            return !!this.livefeedMap[call.system] && this.livefeedMap[call.system][tg]?.active || false;
+            return this.getLivefeed(call.system, tg)?.active || false;
         });
     }
 
@@ -621,7 +639,7 @@ export class RdioScannerService implements OnDestroy {
     startLivefeed(): void {
         const lfm = Object.keys(this.livefeedMap).reduce((sysMap: { [key: number]: { [key: number]: boolean } }, sys) => {
             sysMap[+sys] = Object.keys(this.livefeedMap[+sys]).reduce((tgMap: { [key: number]: boolean }, tg: string) => {
-                tgMap[+tg] = this.livefeedMap[+sys][+tg].active;
+                tgMap[+tg] = !!this.getLivefeed(+sys, +tg)?.active;
                 return tgMap;
             }, {});
             return sysMap;
@@ -698,7 +716,11 @@ export class RdioScannerService implements OnDestroy {
 
             this.config?.systems.forEach((sys) => {
                 sys.talkgroups?.forEach((tg) => {
-                    const lfm = this.livefeedMap[sys.id][tg.id];
+                    const lfm = this.getLivefeed(sys.id, tg.id);
+
+                    if (!lfm) {
+                        return;
+                    }
 
                     if (category.type == RdioScannerCategoryType.Group && tg.group === category.label) {
                         clearTimer(lfm);
@@ -712,8 +734,10 @@ export class RdioScannerService implements OnDestroy {
 
             this.rebuildCategories();
 
-            if (this.call && !this.livefeedMap[this.call.system] && this.livefeedMap[this.call.system][this.call.talkgroup]) {
-                clearTimer(this.livefeedMap[this.call.system][this.call.talkgroup]);
+            const callLfm = this.call ? this.getLivefeed(this.call.system, this.call.talkgroup) : undefined;
+
+            if (this.call && callLfm) {
+                clearTimer(callLfm);
                 this.skip();
             }
 
@@ -797,7 +821,7 @@ export class RdioScannerService implements OnDestroy {
 
     private cleanQueue(): void {
         const isActive = (call: RdioScannerCall) => {
-            const lfm = (sys: number, tg: number): boolean => this.livefeedMap && this.livefeedMap[sys] && this.livefeedMap[sys][tg]?.active;
+            const lfm = (sys: number, tg: number): boolean => !!this.getLivefeed(sys, tg)?.active;
             let active = lfm(call.system, call.talkgroup);
             if (!active && Array.isArray(call.patches)) {
                 for (let i = 0; i < call.patches.length; i++) {
@@ -815,6 +839,22 @@ export class RdioScannerService implements OnDestroy {
         if (this.call && !isActive(this.call)) {
             this.skip();
         }
+    }
+
+    private getLivefeed(sys: number, tg: number): RdioScannerLivefeed | undefined {
+        return this.livefeedMap?.[sys]?.[tg];
+    }
+
+    private getOrCreateLivefeed(sys: number, tg: number): RdioScannerLivefeed {
+        if (!this.livefeedMap[sys]) {
+            this.livefeedMap[sys] = {};
+        }
+
+        if (!this.livefeedMap[sys][tg]) {
+            this.livefeedMap[sys][tg] = {} as RdioScannerLivefeed;
+        }
+
+        return this.livefeedMap[sys][tg];
     }
 
     private clearQueue(): void {
@@ -1120,9 +1160,9 @@ export class RdioScannerService implements OnDestroy {
 
             Object.keys(lfm ?? {}).forEach((sys: string) => {
                 Object.keys(lfm[+sys]).forEach((tg) => {
-                    if (!this.livefeedMap[+sys]) this.livefeedMap[+sys] = {};
-                    if (!this.livefeedMap[+sys][+tg]) this.livefeedMap[+sys][+tg] = {} as RdioScannerLivefeed;
-                    this.livefeedMap[+sys][+tg].active = lfm[+sys][+tg];
+                    const current = this.getOrCreateLivefeed(+sys, +tg);
+
+                    current.active = lfm[+sys][+tg];
                 });
             });
 
@@ -1135,11 +1175,11 @@ export class RdioScannerService implements OnDestroy {
         this.categories = Object.keys(this.config.groups || []).map((label) => {
             const allOff = Object.keys(this.config.groups[label]).map((sys) => +sys)
                 .every((sys: number) => this.config.groups[label] && this.config.groups[label][sys]
-                    .every((tg) => this.livefeedMap[sys] && !this.livefeedMap[sys][tg].active));
+                .every((tg) => !this.getLivefeed(sys, tg)?.active));
 
             const allOn = Object.keys(this.config.groups[label]).map((sys) => +sys)
                 .every((sys: number) => this.config.groups[label] && this.config.groups[label][sys]
-                    .every((tg) => this.livefeedMap[sys] && this.livefeedMap[sys][tg].active));
+                .every((tg) => !!this.getLivefeed(sys, tg)?.active));
 
             const status = allOff ? RdioScannerCategoryStatus.Off : allOn ? RdioScannerCategoryStatus.On : RdioScannerCategoryStatus.Partial;
 
@@ -1150,11 +1190,11 @@ export class RdioScannerService implements OnDestroy {
             this.categories = this.categories.concat(Object.keys(this.config.tags || []).map((label) => {
                 const allOff = Object.keys(this.config.tags[label]).map((sys) => +sys)
                     .every((sys: number) => this.config.tags[label] && this.config.tags[label][sys]
-                        .every((tg) => this.livefeedMap[sys] && !this.livefeedMap[sys][tg].active));
+                        .every((tg) => !this.getLivefeed(sys, tg)?.active));
 
                 const allOn = Object.keys(this.config.tags[label]).map((sys) => +sys)
                     .every((sys: number) => this.config.tags[label] && this.config.tags[label][sys]
-                        .every((tg) => this.livefeedMap[sys] && this.livefeedMap[sys][tg].active));
+                        .every((tg) => !!this.getLivefeed(sys, tg)?.active));
 
                 const status = allOff ? RdioScannerCategoryStatus.Off : allOn ? RdioScannerCategoryStatus.On : RdioScannerCategoryStatus.Partial;
 
@@ -1171,8 +1211,10 @@ export class RdioScannerService implements OnDestroy {
                 const group = this.categories.find((cat) => cat.label === tg.group);
                 const tag = this.categories.find((cat) => cat.label === tg.tag);
 
-                tgMap[tg.id] = (this.livefeedMap[sys.id] && this.livefeedMap[sys.id][tg.id])
-                    ? this.livefeedMap[sys.id][tg.id]
+                const current = this.getLivefeed(sys.id, tg.id);
+
+                tgMap[tg.id] = current
+                    ? current
                     : {
                         active: !(group?.status === RdioScannerCategoryStatus.Off || tag?.status === RdioScannerCategoryStatus.Off),
                     } as RdioScannerLivefeed;
@@ -1204,7 +1246,7 @@ export class RdioScannerService implements OnDestroy {
     private saveLivefeedMap(): void {
         const lfm = Object.keys(this.livefeedMap).reduce((sysMap: { [key: number]: { [key: number]: boolean } }, sys: string) => {
             sysMap[+sys] = Object.keys(this.livefeedMap[+sys]).reduce((tgMap: { [key: number]: boolean }, tg: string) => {
-                tgMap[+tg] = this.livefeedMap[+sys][+tg].active;
+                tgMap[+tg] = !!this.getLivefeed(+sys, +tg)?.active;
                 return tgMap;
             }, {});
             return sysMap;
