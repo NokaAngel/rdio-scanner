@@ -33,9 +33,14 @@
     </mat-sidenav>
     <mat-sidenav-content>
         <rdio-scanner-main
+            [theme]="theme"
+            [themePreset]="themePreset"
+            [themePresets]="themePresets"
             (openSearchPanel)="scrollTop(scrollableSearch); searchPanel.open(); searchComponent.searchCalls()"
             (openSelectPanel)="scrollTop(scrollableSelect); selectPanel.open();"
-            (toggleFullscreen)="toggleFullscreen()">
+            (toggleFullscreen)="toggleFullscreen()"
+            (updateCustomTheme)="updateCustomTheme($event)"
+            (updateThemePreset)="updateThemePreset($event)">
         </rdio-scanner-main>
     </mat-sidenav-content>
 </mat-sidenav-container>

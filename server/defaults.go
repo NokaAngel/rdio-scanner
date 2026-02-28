@@ -68,6 +68,7 @@ type DefaultOptions struct {
 	showListenersCount          bool
 	sortTalkgroups              bool
 	tagsToggle                  bool
+	themePreset                 string
 	time12hFormat               bool
 }
 
@@ -113,6 +114,7 @@ var defaults Defaults = Defaults{
 		showListenersCount:          false,
 		sortTalkgroups:              false,
 		tagsToggle:                  false,
+		themePreset:                 "classic-scanner",
 		time12hFormat:               false,
 	},
 	systems: []System{},

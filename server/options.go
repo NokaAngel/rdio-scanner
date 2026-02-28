@@ -46,6 +46,7 @@ type Options struct {
 	ShowListenersCount          bool   `json:"showListenersCount"`
 	SortTalkgroups              bool   `json:"sortTalkgroups"`
 	TagsToggle                  bool   `json:"tagsToggle"`
+	ThemePreset                 string `json:"themePreset"`
 	Time12hFormat               bool   `json:"time12hFormat"`
 	adminPassword               string
 	adminPasswordNeedChange     bool
@@ -183,6 +184,13 @@ func (options *Options) FromMap(m map[string]any) *Options {
 		options.TagsToggle = defaults.options.tagsToggle
 	}
 
+	switch v := m["themePreset"].(type) {
+	case string:
+		options.ThemePreset = v
+	default:
+		options.ThemePreset = defaults.options.themePreset
+	}
+
 	switch v := m["time12hFormat"].(type) {
 	case bool:
 		options.Time12hFormat = v
@@ -220,6 +228,7 @@ func (options *Options) Read(db *Database) error {
 	options.ShowListenersCount = defaults.options.showListenersCount
 	options.SortTalkgroups = defaults.options.sortTalkgroups
 	options.TagsToggle = defaults.options.tagsToggle
+	options.ThemePreset = defaults.options.themePreset
 
 	err = db.Sql.QueryRow("select `val` from `rdioScannerConfigs` where `key` = 'adminPassword'").Scan(&s)
 	if err == nil {
@@ -321,6 +330,11 @@ func (options *Options) Read(db *Database) error {
 				options.TagsToggle = v
 			}
 
+			switch v := m["themePreset"].(type) {
+			case string:
+				options.ThemePreset = v
+			}
+
 			switch v := m["time12hFormat"].(type) {
 			case bool:
 				options.Time12hFormat = v
@@ -394,6 +408,7 @@ func (options *Options) Write(db *Database) error {
 		"showListenersCount":          options.ShowListenersCount,
 		"sortTalkgroups":              options.SortTalkgroups,
 		"tagsToggle":                  options.TagsToggle,
+		"themePreset":                 options.ThemePreset,
 		"time12hFormat":               options.Time12hFormat,
 	}); err != nil {
 		return formatError(err)

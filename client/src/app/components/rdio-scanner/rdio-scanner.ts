@@ -100,10 +100,27 @@ export interface RdioScannerConfig {
     keypadBeeps: RdioScannerKeypadBeeps | false;
     playbackGoesLive: boolean;
     showListenersCount: boolean;
+    themePreset?: RdioScannerThemePreset;
     systems: RdioScannerSystem[];
     tags: { [key: string]: { [key: number]: number[] } };
     tagsToggle: boolean;
     time12hFormat: boolean;
+}
+
+export interface RdioScannerTheme {
+    accent: string;
+    background: string;
+    button: string;
+    display: string;
+    ledGlowStrength: number;
+    panel: string;
+    text: string;
+}
+
+export enum RdioScannerThemePreset {
+    ClassicScanner = 'classic-scanner',
+    Custom = 'custom',
+    ModernDark = 'modern-dark',
 }
 
 export interface RdioScannerEvent {

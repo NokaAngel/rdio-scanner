@@ -145,6 +145,7 @@ export interface Options {
     showListenersCount?: boolean;
     sortTalkgroups?: boolean;
     tagsToggle?: boolean;
+    themePreset?: string;
     time12hFormat?: boolean;
 }
 
@@ -512,6 +513,7 @@ export class RdioScannerAdminService implements OnDestroy {
 			showListenersCount: [options?.showListenersCount],
             sortTalkgroups: [options?.sortTalkgroups],
             tagsToggle: [options?.tagsToggle],
+            themePreset: [options?.themePreset],
             time12hFormat: [options?.time12hFormat],
         });
     }
