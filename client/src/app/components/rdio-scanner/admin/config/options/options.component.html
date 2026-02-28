@@ -10,6 +10,19 @@
     </div>
     <div class="row">
         <p>
+            <span class="mat-body">Default Scanner Theme</span><br>
+            <span class="mat-caption">Global default theme preset used by clients unless they select and save their own theme.</span>
+        </p>
+        <mat-form-field floatLabel="never">
+            <mat-select formControlName="themePreset" placeholder="Theme Preset">
+                <mat-option value="classic-scanner">Classic Scanner</mat-option>
+                <mat-option value="modern-dark">Modern Dark</mat-option>
+                <mat-option value="custom">Custom (client managed)</mat-option>
+            </mat-select>
+        </mat-form-field>
+    </div>
+    <div class="row">
+        <p>
             <span class="mat-body">AFS Systems</span><br>
             <span class="mat-caption">A comma separated list of system Ids where talkgroup Ids should be displayed in
                 AFS (agency-fleet-subfleet) format.</span>

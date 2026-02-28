@@ -190,6 +190,7 @@ func (client *Client) SendConfig(groups *Groups, options *Options, systems *Syst
 		"keypadBeeps":        GetKeypadBeeps(options),
 		"playbackGoesLive":   options.PlaybackGoesLive,
 		"showListenersCount": options.ShowListenersCount,
+		"themePreset":        options.ThemePreset,
 		"systems":            client.SystemsMap,
 		"tags":               client.TagsMap,
 		"tagsToggle":         options.TagsToggle,

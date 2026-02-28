@@ -33,7 +33,7 @@
 
       .volume-control {
         align-items: center;
-        background: rgb(45, 45, 45);
+        background: var(--scanner-button, rgb(45, 45, 45));
         border-style: solid;
         border-width: 1px;
         border-bottom-color: rgba(0, 0, 0, 0.87);
@@ -41,7 +41,7 @@
         border-right-color: rgba(0, 0, 0, 0.87);
         border-top-color: rgba(255, 255, 255, 0.7);
         box-sizing: border-box;
-        color: rgb(250, 250, 250);
+        color: var(--scanner-text, rgb(250, 250, 250));
         display: flex;
         flex: 1;
         font-size: 12px;
@@ -54,7 +54,7 @@
         text-shadow: 0 0 4px rgb(0, 0, 0);
 
         input[type='range'] {
-          accent-color: rgb(0, 230, 118);
+          accent-color: var(--scanner-accent, rgb(0, 230, 118));
           flex: 1;
           height: 2px;
           margin: 0;
@@ -65,8 +65,8 @@
 }
 
 .rdio-display {
-  background: rgb(209, 238, 238);
-  box-shadow: 2px 2px 4px rgb(0, 0, 0) inset, 1px 1px 2px 1px rgb(255, 255, 255);
+  background: var(--scanner-display, rgb(209, 238, 238));
+  box-shadow: 2px 2px 4px rgb(0, 0, 0) inset, 1px 1px 2px 1px var(--scanner-led-white, rgb(255, 255, 255));
   color: rgba(0, 0, 0, 0.8);
   cursor: default;
   display: block;
@@ -76,11 +76,11 @@
   padding: 8px;
 
   &.idle {
-    background: rgb(190, 190, 174);
+    background: var(--scanner-display-idle, rgb(190, 190, 174));
 
     .avoid,
     .patched {
-      color: rgb(190, 190, 174);
+      color: var(--scanner-display-idle, rgb(190, 190, 174));
     }
   }
 
@@ -107,7 +107,7 @@
     }
 
     > form {
-      background: rgb(240, 240, 240);
+      background: var(--scanner-panel, rgb(240, 240, 240));
       border-radius: 8px;
       padding: 8px 32px;
 
@@ -120,7 +120,7 @@
   .flag {
     background: rgba(0, 0, 0, 0.8);
     border-radius: 3px;
-    color: rgb(209, 238, 238);
+    color: var(--scanner-display, rgb(209, 238, 238));
     display: none;
     margin-left: 4px;
     opacity: 0.87;
@@ -213,7 +213,7 @@
   min-height: 1.5rem;
 
   .branding {
-    color: rgb(64, 64, 64);
+    color: color-mix(in srgb, var(--scanner-text, var(--scanner-led-white, rgb(255, 255, 255))) 45%, black);
     flex: 1;
     font-size: 16px;
     font-weight: normal;
@@ -227,64 +227,32 @@
   }
 
   .led {
-    background: rgb(80, 80, 80);
+    background: var(--scanner-led-off, rgb(80, 80, 80));
     display: block;
     height: 12px;
     margin-left: 24px;
     width: 24px;
 
     &.on {
-      background: rgb(0, 230, 118);
-      box-shadow: 0 0 6px 3px rgb(0, 230, 118);
+      --scanner-led-color: var(--scanner-accent, rgb(0, 230, 118));
+      background: var(--scanner-led-color);
+      box-shadow: 0 0 calc(6px * var(--scanner-led-glow-strength, 1)) calc(3px * var(--scanner-led-glow-strength, 1)) var(--scanner-led-color);
 
-      &.blue {
-        background: rgb(41, 121, 255);
-        box-shadow: 0 0 6px 3px rgb(41, 121, 255);
-      }
-
-      &.cyan {
-        background: rgb(0, 229, 255);
-        box-shadow: 0 0 6px 3px rgb(0, 229, 255);
-      }
-
-      &.green {
-        background: rgb(0, 230, 118);
-        box-shadow: 0 0 6px 3px rgb(0, 230, 118);
-      }
-
-      &.magenta {
-        background: rgb(213, 0, 249);
-        box-shadow: 0 0 6px 3px rgb(213, 0, 249);
-      }
-
-      &.orange {
-        background: rgb(255, 145, 0);
-        box-shadow: 0 0 6px 3px rgb(255, 145, 0);
-      }
-
-      &.red {
-        background: rgb(255, 23, 68);
-        box-shadow: 0 0 6px 3px rgb(255, 23, 68);
-      }
-
-      &.white {
-        background: rgb(255, 255, 255);
-        box-shadow: 0 0 6px 3px rgb(255, 255, 255);
-      }
-
-      &.yellow {
-        background: rgb(255, 234, 0);
-        box-shadow: 0 0 6px 3px rgb(255, 234, 0);
-      }
+      &.blue { --scanner-led-color: var(--scanner-led-blue, rgb(41, 121, 255)); }
+      &.cyan { --scanner-led-color: var(--scanner-led-cyan, rgb(0, 229, 255)); }
+      &.green { --scanner-led-color: var(--scanner-accent, rgb(0, 230, 118)); }
+      &.magenta { --scanner-led-color: var(--scanner-led-magenta, rgb(213, 0, 249)); }
+      &.orange { --scanner-led-color: var(--scanner-led-orange, rgb(255, 145, 0)); }
+      &.red { --scanner-led-color: var(--scanner-led-red, rgb(255, 23, 68)); }
+      &.white { --scanner-led-color: var(--scanner-led-white, rgb(255, 255, 255)); }
+      &.yellow { --scanner-led-color: var(--scanner-led-yellow, rgb(255, 234, 0)); }
     }
 
-    &.paused {
-      animation: led-blink 2s step-end infinite;
-    }
+    &.paused { animation: led-blink 2s step-end infinite; }
 
     @keyframes led-blink {
       50% {
-        background: rgb(80, 80, 80);
+        background: var(--scanner-led-off, rgb(80, 80, 80));
         box-shadow: none;
       }
     }
@@ -302,3 +270,8 @@
   position: absolute;
   right: 24px;
 }
+
+.rdio-theme { margin-bottom: 16px; }
+.rdio-theme .custom-theme { display: grid; grid-template-columns: repeat(2,1fr); }
+.rdio-theme label { color: var(--scanner-text); display: flex; flex-direction: column; }
+

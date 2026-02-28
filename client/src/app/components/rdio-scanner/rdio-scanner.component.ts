@@ -17,11 +17,11 @@
  * ****************************************************************************
  */
 
-import { Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { Component, ElementRef, HostBinding, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { MatSidenav } from '@angular/material/sidenav';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { timer } from 'rxjs';
-import { RdioScannerEvent, RdioScannerLivefeedMode } from './rdio-scanner';
+import { RdioScannerEvent, RdioScannerLivefeedMode, RdioScannerTheme, RdioScannerThemePreset } from './rdio-scanner';
 import { RdioScannerService } from './rdio-scanner.service';
 import { RdioScannerNativeComponent } from './native/native.component';
 
@@ -31,6 +31,36 @@ import { RdioScannerNativeComponent } from './native/native.component';
     templateUrl: './rdio-scanner.component.html',
 })
 export class RdioScannerComponent implements OnDestroy, OnInit {
+    readonly themePresets: { label: string; value: RdioScannerThemePreset }[] = [
+        { label: 'Classic Scanner', value: RdioScannerThemePreset.ClassicScanner },
+        { label: 'Modern Dark', value: RdioScannerThemePreset.ModernDark },
+        { label: 'Custom', value: RdioScannerThemePreset.Custom },
+    ];
+
+    readonly themes: Record<RdioScannerThemePreset.ClassicScanner | RdioScannerThemePreset.ModernDark, RdioScannerTheme> = {
+        [RdioScannerThemePreset.ClassicScanner]: {
+            accent: 'rgb(0, 230, 118)',
+            background: 'rgb(30, 30, 30)',
+            button: 'rgb(45, 45, 45)',
+            display: 'rgb(209, 238, 238)',
+            ledGlowStrength: 1,
+            panel: 'rgb(30, 30, 30)',
+            text: 'rgb(255, 255, 255)',
+        },
+        [RdioScannerThemePreset.ModernDark]: {
+            accent: 'rgb(128, 222, 234)',
+            background: 'rgb(10, 12, 18)',
+            button: 'rgb(38, 44, 58)',
+            display: 'rgb(35, 47, 64)',
+            ledGlowStrength: 1.4,
+            panel: 'rgb(18, 22, 31)',
+            text: 'rgb(224, 230, 237)',
+        },
+    };
+
+    theme: RdioScannerTheme = { ...this.themes[RdioScannerThemePreset.ClassicScanner] };
+    themePreset: RdioScannerThemePreset = RdioScannerThemePreset.ClassicScanner;
+
     private eventSubscription = this.rdioScannerService.event.subscribe((event: RdioScannerEvent) => this.eventHandler(event));
 
     private livefeedMode: RdioScannerLivefeedMode = RdioScannerLivefeedMode.Offline;
@@ -38,6 +68,11 @@ export class RdioScannerComponent implements OnDestroy, OnInit {
     @ViewChild('searchPanel') private searchPanel: MatSidenav | undefined;
 
     @ViewChild('selectPanel') private selectPanel: MatSidenav | undefined;
+
+    @HostBinding('style') hostStyle: { [key: string]: string } = {};
+
+    private readonly localStorageCustomThemeKey = 'rdio-scanner-theme-custom';
+    private readonly localStorageThemePresetKey = 'rdio-scanner-theme-preset';
 
     constructor(
         private matSnackBar: MatSnackBar,
@@ -59,6 +94,8 @@ export class RdioScannerComponent implements OnDestroy, OnInit {
     }
 
     ngOnInit(): void {
+        this.loadLocalTheme();
+
         /*
          * BEGIN OF RED TAPE:
          * 
@@ -136,9 +173,106 @@ export class RdioScannerComponent implements OnDestroy, OnInit {
         }
     }
 
+    updateCustomTheme(theme: RdioScannerTheme): void {
+        this.themePreset = RdioScannerThemePreset.Custom;
+        this.theme = { ...theme };
+        this.persistTheme();
+        this.applyTheme();
+    }
+
+    updateThemePreset(themePreset: RdioScannerThemePreset): void {
+        this.themePreset = themePreset;
+
+        if (themePreset !== RdioScannerThemePreset.Custom) {
+            this.theme = { ...this.themes[themePreset] };
+        }
+
+        this.persistTheme();
+        this.applyTheme();
+    }
+
     private eventHandler(event: RdioScannerEvent): void {
         if (event.livefeedMode) {
             this.livefeedMode = event.livefeedMode;
         }
+
+        if (event.config && event.config.themePreset && !this.readStoredThemePreset()) {
+            this.updateThemePreset(event.config.themePreset);
+        }
+    }
+
+    private applyTheme(): void {
+        this.hostStyle = {
+            '--scanner-background': this.theme.background,
+            '--scanner-panel': this.theme.panel,
+            '--scanner-text': this.theme.text,
+        };
+    }
+
+    private loadLocalTheme(): void {
+        const themePreset = this.readStoredThemePreset();
+
+        if (themePreset) {
+            this.themePreset = themePreset;
+        }
+
+        if (this.themePreset === RdioScannerThemePreset.Custom) {
+            const storedTheme = this.readStoredCustomTheme();
+
+            if (storedTheme) {
+                this.theme = storedTheme;
+            }
+        } else {
+            this.theme = { ...this.themes[this.themePreset] };
+        }
+
+        this.applyTheme();
+    }
+
+    private persistTheme(): void {
+        localStorage.setItem(this.localStorageThemePresetKey, this.themePreset);
+
+        if (this.themePreset === RdioScannerThemePreset.Custom) {
+            localStorage.setItem(this.localStorageCustomThemeKey, JSON.stringify(this.theme));
+        }
+    }
+
+    private readStoredCustomTheme(): RdioScannerTheme | undefined {
+        try {
+            const value = localStorage.getItem(this.localStorageCustomThemeKey);
+
+            if (!value) {
+                return undefined;
+            }
+
+            const parsed = JSON.parse(value);
+
+            if (typeof parsed !== 'object') {
+                return undefined;
+            }
+
+            return {
+                accent: typeof parsed.accent === 'string' ? parsed.accent : this.themes[RdioScannerThemePreset.ClassicScanner].accent,
+                background: typeof parsed.background === 'string' ? parsed.background : this.themes[RdioScannerThemePreset.ClassicScanner].background,
+                button: typeof parsed.button === 'string' ? parsed.button : this.themes[RdioScannerThemePreset.ClassicScanner].button,
+                display: typeof parsed.display === 'string' ? parsed.display : this.themes[RdioScannerThemePreset.ClassicScanner].display,
+                ledGlowStrength: typeof parsed.ledGlowStrength === 'number' ? parsed.ledGlowStrength : this.themes[RdioScannerThemePreset.ClassicScanner].ledGlowStrength,
+                panel: typeof parsed.panel === 'string' ? parsed.panel : this.themes[RdioScannerThemePreset.ClassicScanner].panel,
+                text: typeof parsed.text === 'string' ? parsed.text : this.themes[RdioScannerThemePreset.ClassicScanner].text,
+            };
+
+        } catch {
+            return undefined;
+        }
+    }
+
+    private readStoredThemePreset(): RdioScannerThemePreset | undefined {
+        const value = localStorage.getItem(this.localStorageThemePresetKey);
+
+        if (value && Object.values(RdioScannerThemePreset).includes(value as RdioScannerThemePreset)) {
+            return value as RdioScannerThemePreset;
+        }
+
+        return undefined;
     }
 }

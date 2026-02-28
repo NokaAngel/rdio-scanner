@@ -17,7 +17,7 @@
  * ****************************************************************************
  */
 
-import { ChangeDetectorRef, Component, EventEmitter, OnDestroy, OnInit, Output, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, HostBinding, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { FormBuilder } from '@angular/forms';
 import { MatInput } from '@angular/material/input';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -31,9 +31,13 @@ import {
     RdioScannerEvent,
     RdioScannerLivefeedMap,
     RdioScannerLivefeedMode,
+    RdioScannerTheme,
+    RdioScannerThemePreset,
 } from '../rdio-scanner';
 import { RdioScannerService } from '../rdio-scanner.service';
 import { RdioScannerSupportComponent } from './support/support.component';
+
+type RdioScannerThemeColorKey = keyof Omit<RdioScannerTheme, 'ledGlowStrength'>;
 
 @Component({
     selector: 'rdio-scanner-main',
@@ -43,7 +47,13 @@ import { RdioScannerSupportComponent } from './support/support.component';
     ],
     templateUrl: './main.component.html',
 })
-export class RdioScannerMainComponent implements OnDestroy, OnInit {
+export class RdioScannerMainComponent implements OnChanges, OnDestroy, OnInit {
+    @Input() theme: RdioScannerTheme | undefined;
+
+    @Input() themePreset: RdioScannerThemePreset | undefined;
+
+    @Input() themePresets: { label: string; value: RdioScannerThemePreset }[] = [];
+
     auth = false;
     authForm = this.ngFormBuilder.group({ password: [] });
 
@@ -129,7 +139,13 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
 
     @Output() toggleFullscreen = new EventEmitter<void>();
 
+    @Output() updateCustomTheme = new EventEmitter<RdioScannerTheme>();
+
+    @Output() updateThemePreset = new EventEmitter<RdioScannerThemePreset>();
+
     @ViewChild('password', { read: MatInput }) private authPassword: MatInput | undefined;
+
+    @HostBinding('style') hostStyle: { [key: string]: string } = {};
 
     private clockTimer: Subscription | undefined;
 
@@ -247,6 +263,13 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
         }
     }
 
+
+    ngOnChanges(changes: SimpleChanges): void {
+        if (changes['theme']) {
+            this.applyTheme();
+        }
+    }
+
     ngOnDestroy(): void {
         this.clockTimer?.unsubscribe();
 
@@ -256,9 +279,37 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
     ngOnInit(): void {
         this.syncClock();
 
+        this.applyTheme();
+
         this.volume = this.rdioScannerService.getVolume();
         this.muted = this.volume === 0;
         this.volumeBeforeMute = this.volume > 0 ? this.volume : 1;
+    }
+
+    onThemePresetChange(themePreset: RdioScannerThemePreset): void {
+        this.updateThemePreset.emit(themePreset);
+    }
+
+    onCustomThemeChange(partialTheme: Partial<RdioScannerTheme>): void {
+        const theme: RdioScannerTheme = {
+            accent: partialTheme.accent ?? this.theme?.accent ?? 'rgb(0, 230, 118)',
+            background: partialTheme.background ?? this.theme?.background ?? 'rgb(30, 30, 30)',
+            button: partialTheme.button ?? this.theme?.button ?? 'rgb(45, 45, 45)',
+            display: partialTheme.display ?? this.theme?.display ?? 'rgb(209, 238, 238)',
+            ledGlowStrength: partialTheme.ledGlowStrength ?? this.theme?.ledGlowStrength ?? 1,
+            panel: partialTheme.panel ?? this.theme?.panel ?? 'rgb(30, 30, 30)',
+            text: partialTheme.text ?? this.theme?.text ?? 'rgb(255, 255, 255)',
+        };
+
+        this.updateCustomTheme.emit(theme);
+    }
+
+    onCustomThemeColorChange(key: RdioScannerThemeColorKey, hexColor: string): void {
+        this.onCustomThemeChange({ [key]: this.hexToRgbColor(hexColor) });
+    }
+
+    themeColorValue(key: RdioScannerThemeColorKey): string {
+        return this.toHexColor(this.theme?.[key]);
     }
 
     pause(): void {
@@ -671,5 +722,58 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
         }
 
         this.ngChangeDetectorRef.detectChanges();
+    }
+
+    private hexToRgbColor(value: string): string {
+        const hex = value.trim().replace('#', '');
+
+        if (!/^[0-9A-Fa-f]{6}$/.test(hex)) {
+            return value;
+        }
+
+        const r = parseInt(hex.substring(0, 2), 16);
+        const g = parseInt(hex.substring(2, 4), 16);
+        const b = parseInt(hex.substring(4, 6), 16);
+
+        return `rgb(${r}, ${g}, ${b})`;
+    }
+
+    private toHexColor(value: string | undefined): string {
+        if (!value) {
+            return '#000000';
+        }
+
+        const trimmed = value.trim();
+
+        if (/^#[0-9A-Fa-f]{6}$/.test(trimmed)) {
+            return trimmed.toLowerCase();
+        }
+
+        const rgb = trimmed.match(/^rgba?\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+
+        if (!rgb) {
+            return '#000000';
+        }
+
+        return `#${[rgb[1], rgb[2], rgb[3]]
+            .map((n) => Math.max(0, Math.min(255, Number(n))).toString(16).padStart(2, '0'))
+            .join('')}`;
+    }
+
+    private applyTheme(): void {
+        const theme = this.theme;
+
+        if (!theme) {
+            return;
+        }
+
+        this.hostStyle = {
+            '--scanner-accent': theme.accent,
+            '--scanner-button': theme.button,
+            '--scanner-display': theme.display,
+            '--scanner-led-glow-strength': `${theme.ledGlowStrength}`,
+            '--scanner-panel': theme.panel,
+            '--scanner-text': theme.text,
+        };
     }
 }
