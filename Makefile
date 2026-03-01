@@ -22,8 +22,8 @@ ver := 6.6.3
 client := $(wildcard client/*.json client/*.ts)
 server := $(wildcard server/*.go)
 
-build = @cd server && GOOS=$(1) GOARCH=$(3) go build -o ../dist/$(2)-$(3)/$(4)
-pandoc = @test -d dist/$(1)-$(2) || mkdir -p dist/$(1)-$(2) && pandoc -f markdown -o dist/$(1)-$(2)/$(3) --resource-path docs:docs/platforms $(4) docs/webapp.md docs/faq.md CHANGELOG.md
+build = @mkdir -p dist/$(2)-$(3) && cd server && GOOS=$(1) GOARCH=$(3) go build -o ../dist/$(2)-$(3)/$(4)
+pandoc = @mkdir -p dist/$(1)-$(2) && if command -v pandoc >/dev/null 2>&1; then pandoc -f markdown -o dist/$(1)-$(2)/$(3) --resource-path docs:docs/platforms $(4) docs/webapp.md docs/faq.md CHANGELOG.md; else echo "warning: pandoc not found, skipping $(3) generation"; fi
 zip = @cd dist/$(1)-$(2) && zip -q ../$(app)-$(1)-$(2)-v$(ver).zip * && cd ..
 
 .PHONY: all clean container dist sed
